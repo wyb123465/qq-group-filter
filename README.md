@@ -1,47 +1,50 @@
 # QQ Group Filter Bot
 
-智能 QQ 群聊消息过滤与总结机器人，基于 OneBot v11 协议。
+智能 QQ 群聊消息过滤与总结机器人，基于 OneBot v11 协议 + TypeScript。
 
 ## 功能特性
 
-- 🤖 **自动采集**: 实时监听所有群聊消息并持久化存储
+- 🤖 **自动采集**: 实时监听所有群聊消息并持久化存储（SQLite + FTS5）
 - 💬 **自然语言提问**: 直接在 QQ 私聊问机器人"最近群里有讨论实习吗"
-- 🔍 **智能检索**: SQLite FTS5 全文搜索 + LLM 总结，自动提取时间范围和关键词
+- 🔍 **智能检索**: FTS5 全文搜索 + LLM 总结，自动提取时间范围和关键词
 - 📌 **关注主题**: 定义长期关注的话题，定时生成摘要推送
-- 📊 **带出处引用**: 回复包含 [群名] 发言人 (时间) 的具体引用
+- 📊 **每日推送**: 每天自动推送关注主题的更新（可配置时间）
+- 🔄 **自动重连**: WebSocket 断线自动重连（指数退避）
+
+## 技术栈
+
+- **语言**: TypeScript (Node.js 20+)
+- **协议**: OneBot v11 WebSocket (连接 NapCat/Lagrange.Core)
+- **存储**: better-sqlite3 + FTS5 全文索引
+- **LLM**: OpenAI 兼容接口（默认 DeepSeek）
+- **校验**: Zod schema validation
+- **测试**: Vitest (28 个用例)
 
 ## 快速开始
 
 ### 1. 安装依赖
 
 ```bash
-# 安装 uv（如果还没有）
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 克隆项目
-git clone <your-repo-url>
-cd qq-group-filter
-
-# 同步依赖
-uv sync
+npm install
 ```
 
 ### 2. 配置
 
 ```bash
-# 复制配置模板
 cp .env.example .env
-
-# 编辑 .env，填入必要的配置
-# - BOT_QQ: 机器人 QQ 号
-# - LLM_API_KEY: DeepSeek 或其他 OpenAI 兼容 API 的 key
-# - ONEBOT_WS_URL: NapCat WebSocket 地址（默认 ws://localhost:3001）
+# 编辑 .env，填入必要配置
 ```
 
 ### 3. 运行
 
 ```bash
-uv run python -m qq_group_filter
+npm start
+```
+
+### 开发模式（热重载）
+
+```bash
+npm run dev
 ```
 
 ## 使用指南
@@ -51,11 +54,10 @@ uv run python -m qq_group_filter
 **自然语言提问**:
 ```
 你: 最近群里有讨论 GPU 租赁吗
-机器人: 📋 找到 2 条相关消息：
-       [硬件交流群] 张三 (2026-06-05 14:23)
-       > "AutoDL 3090 现在降价到 2.5/小时了..."
-       
-       💡 总结：有人推荐了 AutoDL 和恒源云的 GPU 租赁方案...
+机器人: 💬 有两个群提到了 GPU 租赁...
+       📋 相关消息：
+       1. [硬件群] 张三 (2026-06-07 14:23)
+          AutoDL 3090 降价到 2.5/小时了...
 ```
 
 **管理关注主题**:
@@ -65,46 +67,56 @@ uv run python -m qq_group_filter
 /interests remove 1
 ```
 
-**生成每日摘要**:
+**手动生成摘要**:
 ```
 /digest
 ```
 
-## 技术架构
+## 项目结构
 
-- **语言**: Python 3.10+ (asyncio)
-- **存储**: SQLite + FTS5 全文索引
-- **LLM**: OpenAI 兼容接口（默认 DeepSeek）
-- **QQ 协议**: OneBot v11 (via NapCat/Lagrange.Core)
-- **测试**: pytest + pytest-asyncio
+```
+src/
+├── main.ts              # 入口
+├── bot.ts               # 主循环与事件路由
+├── config.ts            # 配置管理 (Zod)
+├── models.ts            # 数据模型
+├── persistence.ts       # SQLite 存储 + FTS5
+├── llm.ts               # LLM API 客户端
+├── onebot-client.ts     # OneBot v11 WebSocket 客户端
+├── onebot-message.ts    # 消息段文本化
+├── query.ts             # 查询处理与总结
+└── scheduler.ts         # 定时摘要推送
 
-## 文档
-
-- [NapCat 接入指南](docs/NAPCAT_SETUP.md)
-- [项目总结](docs/PROJECT_SUMMARY.md)
+tests/
+├── persistence.test.ts  # 存储层 (12 用例)
+├── query.test.ts        # 查询逻辑 (6 用例)
+├── onebot-message.test.ts # 消息解析 (4 用例)
+└── integration.test.ts  # 集成测试 (6 用例)
+```
 
 ## 开发
 
 ```bash
-# 运行测试
-uv run pytest tests/ -v
+# 类型检查
+npm run lint
 
-# 代码覆盖率
-uv run pytest tests/ --cov=src/qq_group_filter
+# 运行测试
+npm test
+
+# 监听模式测试
+npm run test:watch
 ```
+
+## NapCat 接入指南
+
+详见 [docs/NAPCAT_SETUP.md](docs/NAPCAT_SETUP.md)
 
 ## ⚠️ 风险提示
 
 - 本项目通过第三方协议（OneBot v11）接入 QQ，**存在账号封禁风险**
-- Tencent 未提供官方 Bot API，使用本项目即代表您理解并愿意承担相关风险
 - 建议使用小号进行测试
+- Tencent 未提供官方 Bot API
 
 ## 许可证
 
 MIT License
-
-## 致谢
-
-- [OneBot](https://github.com/botuniverse/onebot-11) - 标准化 QQ 机器人协议
-- [NapCat](https://github.com/NapNeko/NapCatQQ) - 现代化的 OneBot v11 实现
-- [DeepSeek](https://platform.deepseek.com/) - 高性价比的 LLM API

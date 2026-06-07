@@ -8,6 +8,10 @@ __pycache__/
 dist/
 build/
 
+# Node
+node_modules/
+dist/
+
 # Virtual environments
 venv/
 env/
